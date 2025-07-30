@@ -5,7 +5,7 @@
 
 static const char* MPU6050_TAG = "MPU6050";
 
-i2c_master_dev_handle_t mpu6050_dev_handle;
+static i2c_master_dev_handle_t i2c_dev_handle;
 
 static uint8_t mpu6050_read_reg(uint8_t reg);
 
@@ -18,7 +18,7 @@ void mpu6050_init(uint16_t address) {
         .device_address = address,
         .scl_speed_hz = 100000,
     };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(master_handle, &dev_cfg, &mpu6050_dev_handle));
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(master_handle, &dev_cfg, &i2c_dev_handle));
 
     /* Check Who am I register */
     uint8_t val = mpu6050_read_reg(MPU6050_REG_WHOAMI);
@@ -31,6 +31,6 @@ void mpu6050_init(uint16_t address) {
 static uint8_t mpu6050_read_reg(uint8_t reg) {
     uint8_t val;
     ESP_LOGI(MPU6050_TAG, "Reading register 0x%X", reg);
-    ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu6050_dev_handle, &reg, 1, &val, 1, -1));
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(i2c_dev_handle, &reg, 1, &val, 1, -1));
     return val;
 }

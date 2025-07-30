@@ -3,18 +3,21 @@
 
 #include "driver.h"
 
+static const char* DRIVER_TAG = "DRIVER";
+
 static void driver_i2c_init(void);
 
 void driver_init(void) {
+    ESP_LOGI(DRIVER_TAG, "I2C init...");
     driver_i2c_init();
 }
 
 static void driver_i2c_init(void) {
     i2c_master_bus_config_t i2c_mst_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
-        .i2c_port = -1,
-        .scl_io_num = 22,
-        .sda_io_num = 21,
+        .i2c_port = I2C_NUM_0,
+        .scl_io_num = GPIO_NUM_22,
+        .sda_io_num = GPIO_NUM_21,
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true,
     };
