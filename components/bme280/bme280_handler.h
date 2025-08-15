@@ -1,13 +1,9 @@
-/**\
- * Copyright (c) 2020 Bosch Sensortec GmbH. All rights reserved.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- **/
-
 #ifndef _BME280_HANDLER_H
 #define _BME280_HANDLER_H
 
-/*! CPP guard */
+/***************************************************************************
+ *                              CPP guard                                  *
+ ***************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,15 +11,18 @@ extern "C" {
 #include <stdio.h>
 #include "bme280.h"
 
-/***************************************************************************/
+/***************************************************************************
+ *                                Macros                                   *
+ ***************************************************************************/
 #define BME280_I2C_ADDR0    (BME280_I2C_ADDR_PRIM)
 #define BME280_I2C_ADDR1    (BME280_I2C_ADDR_SEC)
 
-/*!                 User function prototypes
- ****************************************************************************/
+/***************************************************************************
+ *                          Function declartion                            *
+ ***************************************************************************/
 
-/*!
- *  @brief Function for reading the sensor's registers through SPI bus.
+/**
+ * @brief Function for reading the sensor's registers through SPI bus.
  *
  * @param[in] reg_addr       : Register address from which data is read.
  * @param[out] reg_data      : Pointer to data buffer where read data is stored.
@@ -39,7 +38,7 @@ extern "C" {
  */
 BME280_INTF_RET_TYPE bme280_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void *intf_ptr);
 
-/*!
+/**
  *  @brief Function for reading the sensor's registers through I2C bus.
  *
  * @param[in] reg_addr       : Register address from which data is read.
@@ -56,7 +55,7 @@ BME280_INTF_RET_TYPE bme280_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32
  */
 BME280_INTF_RET_TYPE bme280_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void *intf_ptr);
 
-/*!
+/**
  *  @brief Function for writing the sensor's registers through SPI bus.
  *
  * @param[in] reg_addr      : Register address to which the data is written.
@@ -74,7 +73,7 @@ BME280_INTF_RET_TYPE bme280_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32
  */
 BME280_INTF_RET_TYPE bme280_spi_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr);
 
-/*!
+/**
  *  @brief Function for writing the sensor's registers through I2C bus.
  *
  * @param[in] reg_addr      : Register address to which the data is written.
@@ -92,7 +91,7 @@ BME280_INTF_RET_TYPE bme280_spi_write(uint8_t reg_addr, const uint8_t *reg_data,
  */
 BME280_INTF_RET_TYPE bme280_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr);
 
-/*!
+/**
  *  @brief This function provides the delay for required time (Microsecond) as per the input provided in some of the
  *  APIs.
  *
@@ -103,7 +102,7 @@ BME280_INTF_RET_TYPE bme280_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
  */
 void bme280_delay_us(uint32_t period_us, void *intf_ptr);
 
-/*!
+/**
  *  @brief This API is used to print the execution status.
  *
  *  @param[in] api_name : Name of the API whose execution status has to be printed.
@@ -113,9 +112,15 @@ void bme280_delay_us(uint32_t period_us, void *intf_ptr);
  */
 void bme280_error_codes_print_result(const char api_name[], int8_t rslt);
 
-
+/**
+ * @brief This API is used to startup the BME280.
+ */
 int8_t bme280_startup(uint16_t address, struct bme280_dev *dev);
-int8_t get_temperature(uint32_t period, struct bme280_dev *dev);
+
+/**
+ * @brief This API is used to read the temperature.
+ */
+int8_t bme280_get_data(uint32_t period, struct bme280_dev *dev);
 
 #ifdef __cplusplus
 }

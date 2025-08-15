@@ -1,8 +1,3 @@
-/**
- * Copyright (C) 2020 Bosch Sensortec GmbH. All rights reserved.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -13,25 +8,23 @@
 #include "bme280.h"
 #include "bme280_handler.h"
 
-/******************************************************************************/
-/*!                               Macros                                      */
-
+/******************************************************************************
+ *                               Macros                                       *
+ ******************************************************************************/
 #define BME280_TIMEOUT_MS   (-1)
-#define SAMPLE_COUNT        UINT8_C(50)
 
-/******************************************************************************/
-/*!                Static variable definition                                 */
-
+/******************************************************************************
+ *                    Static variable definition                              *
+ ******************************************************************************/
 static const char* BME280_TAG = "BME280";
 
-
-/*! Variable that holds the I2C device address or SPI chip selection */
 static i2c_master_dev_handle_t i2c_dev_handle;
 
-/******************************************************************************/
-/*!                User interface functions                                   */
+/******************************************************************************
+ *                    Static function definition                              *
+ ******************************************************************************/
 
-/*!
+/**
  * I2C read function map to ESP platform
  */
 BME280_INTF_RET_TYPE bme280_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void *intf_ptr)
@@ -51,7 +44,7 @@ BME280_INTF_RET_TYPE bme280_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32
     return bme280_ret;
 }
 
-/*!
+/**
  * I2C write function map to ESP platform
  */
 BME280_INTF_RET_TYPE bme280_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr)
@@ -78,7 +71,7 @@ BME280_INTF_RET_TYPE bme280_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
     return bme280_ret;
 }
 
-/*!
+/**
  * SPI read function map to ESP platform
  */
 BME280_INTF_RET_TYPE bme280_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void *intf_ptr)
@@ -88,7 +81,7 @@ BME280_INTF_RET_TYPE bme280_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32
     return BME280_E_COMM_FAIL;
 }
 
-/*!
+/**
  * SPI write function map to ESP platform
  */
 BME280_INTF_RET_TYPE bme280_spi_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr)
@@ -98,7 +91,7 @@ BME280_INTF_RET_TYPE bme280_spi_write(uint8_t reg_addr, const uint8_t *reg_data,
     return BME280_E_COMM_FAIL;
 }
 
-/*!
+/**
  * Delay function map to ESP platform
  */
 void bme280_delay_us(uint32_t period, void *intf_ptr)
@@ -106,14 +99,14 @@ void bme280_delay_us(uint32_t period, void *intf_ptr)
     esp_rom_delay_us(period);
 }
 
-/*!
+/**
  *  @brief Prints the execution status of the APIs.
  */
 void bme280_error_codes_print_result(const char api_name[], int8_t rslt)
 {
     if (rslt != BME280_OK)
     {
-        printf("%s\t", api_name);
+        printf("%s\n", api_name);
 
         switch (rslt)
         {
@@ -198,20 +191,20 @@ int8_t bme280_startup(uint16_t address, struct bme280_dev *dev) {
     ESP_LOGI(BME280_TAG, "Temperature calculation (Data displayed are compensated values)");
     ESP_LOGI(BME280_TAG, "Measurement time : %lu us", (long unsigned int)period);
 
-    rslt = get_temperature(period, dev);
-    bme280_error_codes_print_result("get_temperature", rslt);
+    rslt = bme280_get_data(period, dev);
+    bme280_error_codes_print_result("bme280_get_data", rslt);
 
     return 0;
 }
 
-int8_t get_temperature(uint32_t period, struct bme280_dev *dev)
+int8_t bme280_get_data(uint32_t period, struct bme280_dev *dev)
 {
     int8_t rslt = BME280_E_NULL_PTR;
-    int8_t idx = 0;
+    int8_t done = 0;
     uint8_t status_reg;
     struct bme280_data comp_data;
 
-    while (idx < SAMPLE_COUNT)
+    while (done != 1)
     {
         rslt = bme280_get_regs(BME280_REG_STATUS, &status_reg, 1, dev);
         bme280_error_codes_print_result("bme280_get_regs", rslt);
@@ -222,19 +215,12 @@ int8_t get_temperature(uint32_t period, struct bme280_dev *dev)
             dev->delay_us(period, dev->intf_ptr);
 
             /* Read compensated data */
-            rslt = bme280_get_sensor_data(BME280_TEMP, &comp_data, dev);
+            rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, dev);
             bme280_error_codes_print_result("bme280_get_sensor_data", rslt);
 
-#ifndef BME280_DOUBLE_ENABLE
-            comp_data.temperature = comp_data.temperature / 100;
-#endif
-
-#ifdef BME280_DOUBLE_ENABLE
-            ESP_LOGI(BME280_TAG, "Temperature[%d]:   %lf deg C", idx, comp_data.temperature);
-#else
-            ESP_LOGI(BME280_TAG, "Temperature[%d]:   %ld deg C", idx, (long int)comp_data.temperature);
-#endif
-            idx++;
+            ESP_LOGI(BME280_TAG, "T=%lf °C, p=%lf Pa, h=%lf %%rH", comp_data.temperature, comp_data.pressure, comp_data.humidity);
+            
+            done = 1;
         }
     }
 
