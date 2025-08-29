@@ -21,7 +21,7 @@ static const char* BME280_TAG = "BME280";
 static i2c_master_dev_handle_t i2c_dev_handle;
 
 /******************************************************************************
- *                    Static function definition                              *
+ *                        Function definition                              *
  ******************************************************************************/
 
 /**
