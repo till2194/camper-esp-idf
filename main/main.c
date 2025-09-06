@@ -3,7 +3,7 @@
 #include <driver/i2c_master.h>
 
 #include "driver.h"
-#include "sensors.h"
+#include "sensor.h"
 
 static const char* MAIN_TAG = "MAIN";
 
@@ -14,5 +14,5 @@ void app_main(void) {
     driver_init();
 
     ESP_LOGI(MAIN_TAG, "Starting sensors...");
-    sensors_init();
+    sensor_init();
 }

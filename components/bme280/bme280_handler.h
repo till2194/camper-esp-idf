@@ -1,25 +1,36 @@
-#ifndef _BME280_HANDLER_H
-#define _BME280_HANDLER_H
+/******************************************************************************
+ * Header Guard
+*******************************************************************************/
+#ifndef _APP_BME280_HANDLER_H_
+#define _APP_BME280_HANDLER_H_
 
-/***************************************************************************
- *                              CPP guard                                  *
- ***************************************************************************/
+
+/******************************************************************************
+ * CPP Guard
+*******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+
+/******************************************************************************
+ * Includes
+*******************************************************************************/
 #include <stdio.h>
 #include "bme280.h"
 
-/***************************************************************************
- *                                Macros                                   *
- ***************************************************************************/
-#define BME280_I2C_ADDR0    (BME280_I2C_ADDR_PRIM)
-#define BME280_I2C_ADDR1    (BME280_I2C_ADDR_SEC)
 
-/***************************************************************************
- *                          Function declartion                            *
- ***************************************************************************/
+/******************************************************************************
+ * Macros
+*******************************************************************************/
+
+#define BME280_I2C_ADDR0    (BME280_I2C_ADDR_PRIM)  /* Primary I2C address */
+#define BME280_I2C_ADDR1    (BME280_I2C_ADDR_SEC)   /* Secondary I2C address */
+
+
+/******************************************************************************
+ * Function declaration
+*******************************************************************************/
 
 /**
  * @brief Function for reading the sensor's registers through SPI bus.
@@ -38,6 +49,7 @@ extern "C" {
  */
 BME280_INTF_RET_TYPE bme280_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void *intf_ptr);
 
+
 /**
  *  @brief Function for reading the sensor's registers through I2C bus.
  *
@@ -54,6 +66,7 @@ BME280_INTF_RET_TYPE bme280_spi_read(uint8_t reg_addr, uint8_t *reg_data, uint32
  *
  */
 BME280_INTF_RET_TYPE bme280_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void *intf_ptr);
+
 
 /**
  *  @brief Function for writing the sensor's registers through SPI bus.
@@ -73,6 +86,7 @@ BME280_INTF_RET_TYPE bme280_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32
  */
 BME280_INTF_RET_TYPE bme280_spi_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr);
 
+
 /**
  *  @brief Function for writing the sensor's registers through I2C bus.
  *
@@ -91,6 +105,7 @@ BME280_INTF_RET_TYPE bme280_spi_write(uint8_t reg_addr, const uint8_t *reg_data,
  */
 BME280_INTF_RET_TYPE bme280_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr);
 
+
 /**
  *  @brief This function provides the delay for required time (Microsecond) as per the input provided in some of the
  *  APIs.
@@ -102,6 +117,7 @@ BME280_INTF_RET_TYPE bme280_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
  */
 void bme280_delay_us(uint32_t period_us, void *intf_ptr);
 
+
 /**
  *  @brief This API is used to print the execution status.
  *
@@ -111,6 +127,7 @@ void bme280_delay_us(uint32_t period_us, void *intf_ptr);
  *  @return void.
  */
 void bme280_error_codes_print_result(const char api_name[], int8_t rslt);
+
 
 /**
  * @brief This API is used to startup the BME280.
@@ -122,8 +139,10 @@ int8_t bme280_startup(uint16_t address, struct bme280_dev *dev);
  */
 int8_t bme280_get_data(uint32_t period, struct bme280_dev *dev);
 
+
 #ifdef __cplusplus
 }
 #endif /* End of CPP guard */
 
-#endif /* _BME280_HANDLER_H */
+
+#endif /* _APP_BME280_HANDLER_H_ */
