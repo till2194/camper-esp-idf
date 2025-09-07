@@ -26,8 +26,9 @@ extern "C" {
  * @brief Possible sensors in the system
  */
 typedef enum sensor_type_e {
-    SENSOR_BME280,
-    SENSOR_MPU6050
+    SENSOR_BME280,      /* BME280 Environmental sensor */
+    SENSOR_MPU6050,     /* MPU6050 Accelerometer and Gyroscope */
+    SENSOR_DS3231       /* DS3231 Real Time Clock */
 } sensor_type_t;
 
 
