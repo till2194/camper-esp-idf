@@ -19,6 +19,14 @@ extern "C" {
 
 
 /******************************************************************************
+ * Macros
+*******************************************************************************/
+#define SENSOR_TASK_PRIORITY    5
+#define SENSOR_TASK_DELAY_MS    5000
+#define SENSOR_TASK_STACK_SIZE  4096
+
+
+/******************************************************************************
  * Typedefs
 *******************************************************************************/
 
@@ -64,6 +72,14 @@ void sensor_init(void);
  * @param[in] args : Not used
  */
 void sensor_task(void *args);
+
+
+/**
+ * @brief Get all sensor data (mutex protected)
+ * 
+ * @param[out] data     : Pointer to sensor_data_t struct to fill with current data
+ */
+void sensor_get_data(sensor_data_t *data);
 
 
 #ifdef __cplusplus

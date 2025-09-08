@@ -4,6 +4,7 @@
 
 #include "driver.h"
 #include "sensor.h"
+#include "console.h"
 
 static const char* MAIN_TAG = "MAIN";
 
@@ -15,4 +16,7 @@ void app_main(void) {
 
     ESP_LOGI(MAIN_TAG, "Starting sensors...");
     sensor_init();
+
+    ESP_LOGI(MAIN_TAG, "Starting console...");
+    console_init();
 }
