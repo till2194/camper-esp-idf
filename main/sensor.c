@@ -23,7 +23,6 @@
 *******************************************************************************/
 
 static const char* SENSOR_TAG = "SENSOR";
-static struct bme280_dev bme280_dev0;
 static sensor_data_t sensor_data;
 
 sensor_type_t sensor_list[] = {
@@ -52,7 +51,7 @@ void sensor_init(void) {
         switch (sensor_list[i]) {
             case SENSOR_BME280:
                 ESP_LOGI(SENSOR_TAG, "BME280 init...");
-                bme280_startup(BME280_I2C_ADDR1, &bme280_dev0);
+                bme280_startup(BME280_I2C_ADDR1);
                 break;
             
             case SENSOR_MPU6050:
@@ -82,8 +81,7 @@ void sensor_task(void *args) {
                 case SENSOR_BME280:
                     ESP_LOGI(SENSOR_TAG, "BME280 reading data...");
                     if (xSemaphoreTake(sensor_data_mutex, portMAX_DELAY) == pdTRUE) {
-                        // TODO: Create bme_read function that fills the 3 values
-                        // bme_read(&sensor_data.temperature, &sensor_data.pressure, &sensor_data.humidity);
+                        bme280_get_data(&sensor_data.temperature, &sensor_data.pressure, &sensor_data.humidity);
                         xSemaphoreGive(sensor_data_mutex);
                     } else {
                         ESP_LOGE(SENSOR_TAG, "sensor_task: Could not get mutex!");

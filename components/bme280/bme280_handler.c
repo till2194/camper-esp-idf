@@ -24,6 +24,8 @@
 
 static const char* BME280_TAG = "BME280";
 static i2c_master_dev_handle_t i2c_dev_handle;
+static struct bme280_dev bme280_dev0;
+static uint32_t bme280_period;
 
 
 /******************************************************************************
@@ -95,46 +97,14 @@ void bme280_delay_us(uint32_t period, void *intf_ptr) {
 }
 
 
-void bme280_error_codes_print_result(const char api_name[], int8_t rslt) {
-    if (rslt != BME280_OK)
-    {
-        printf("%s\n", api_name);
-
-        switch (rslt)
-        {
-            case BME280_E_NULL_PTR:
-                ESP_LOGE(BME280_TAG, "Error [%d] : Null pointer error.", rslt);
-                break;
-
-            case BME280_E_COMM_FAIL:
-                ESP_LOGE(BME280_TAG, "Error [%d] : Communication failure error.", rslt);
-                break;
-
-            case BME280_E_DEV_NOT_FOUND:
-                ESP_LOGE(BME280_TAG, "Error [%d] : Device not found error.", rslt);
-                break;
-
-            case BME280_E_INVALID_LEN:
-                ESP_LOGE(BME280_TAG, "Error [%d] : Invalid length error.", rslt);
-                break;
-
-            default:
-                ESP_LOGE(BME280_TAG, "Error [%d] : Unknown error code", rslt);
-                break;
-        }
-    }
-}
-
-
-int8_t bme280_startup(uint16_t address, struct bme280_dev *dev) {
+int8_t bme280_startup(uint16_t address) {
     BME280_INTF_RET_TYPE rslt;
-    uint32_t period;
     struct bme280_settings settings;
 
-    dev->read = bme280_i2c_read;
-    dev->write = bme280_i2c_write;
-    dev->intf = BME280_I2C_INTF;
-    dev->delay_us = bme280_delay_us;
+    bme280_dev0.read = bme280_i2c_read;
+    bme280_dev0.write = bme280_i2c_write;
+    bme280_dev0.intf = BME280_I2C_INTF;
+    bme280_dev0.delay_us = bme280_delay_us;
     
     i2c_master_bus_handle_t master_handle;
     ESP_ERROR_CHECK(i2c_master_get_bus_handle(0, &master_handle));
@@ -149,14 +119,20 @@ int8_t bme280_startup(uint16_t address, struct bme280_dev *dev) {
     ESP_ERROR_CHECK(result);
 
     /* Store I2C device handle pointer */
-    dev->intf_ptr = &i2c_dev_handle;
+    bme280_dev0.intf_ptr = &i2c_dev_handle;
 
-    rslt = bme280_init(dev);
-    bme280_error_codes_print_result("bme280_init", rslt);
+    rslt = bme280_init(&bme280_dev0);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(BME280_TAG, "bme280_init failed: %d", rslt);
+        return rslt;
+    }
 
     /* Always read the current settings before writing, especially when all the configuration is not modified */
-    rslt = bme280_get_sensor_settings(&settings, dev);
-    bme280_error_codes_print_result("bme280_get_sensor_settings", rslt);
+    rslt = bme280_get_sensor_settings(&settings, &bme280_dev0);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(BME280_TAG, "bme280_get_sensor_settings failed: %d", rslt);
+        return rslt;
+    }
 
     /* Configuring the over-sampling rate, filter coefficient and standby time */
     /* Overwrite the desired settings */
@@ -170,49 +146,81 @@ int8_t bme280_startup(uint16_t address, struct bme280_dev *dev) {
     /* Setting the standby time */
     settings.standby_time = BME280_STANDBY_TIME_0_5_MS;
 
-    rslt = bme280_set_sensor_settings(BME280_SEL_ALL_SETTINGS, &settings, dev);
-    bme280_error_codes_print_result("bme280_set_sensor_settings", rslt);
+    rslt = bme280_set_sensor_settings(BME280_SEL_ALL_SETTINGS, &settings, &bme280_dev0);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(BME280_TAG, "bme280_set_sensor_settings failed: %d", rslt);
+        return rslt;
+    }
 
     /* Always set the power mode after setting the configuration */
-    rslt = bme280_set_sensor_mode(BME280_POWERMODE_NORMAL, dev);
-    bme280_error_codes_print_result("bme280_set_power_mode", rslt);
+    rslt = bme280_set_sensor_mode(BME280_POWERMODE_NORMAL, &bme280_dev0);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(BME280_TAG, "bme280_set_sensor_mode failed: %d", rslt);
+        return rslt;
+    }
 
     /* Calculate measurement time in microseconds */
-    rslt = bme280_cal_meas_delay(&period, &settings);
-    bme280_error_codes_print_result("bme280_cal_meas_delay", rslt);
+    rslt = bme280_cal_meas_delay(&bme280_period, &settings);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(BME280_TAG, "bme280_cal_meas_delay failed: %d", rslt);
+        return rslt;
+    }
 
     ESP_LOGI(BME280_TAG, "Temperature calculation (Data displayed are compensated values)");
-    ESP_LOGI(BME280_TAG, "Measurement time : %lu us", (long unsigned int)period);
+    ESP_LOGI(BME280_TAG, "Measurement time : %lu us", (long unsigned int)bme280_period);
+    
+    double temperature;
+    double pressure;
+    double humidity;
+    rslt = bme280_get_data(&temperature, &pressure, &humidity);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(BME280_TAG, "bme280_get_data failed: %d", rslt);
+        return rslt;
+    }
 
-    rslt = bme280_get_data(period, dev);
-    bme280_error_codes_print_result("bme280_get_data", rslt);
+    ESP_LOGI(BME280_TAG, "T=%lf °C, p=%lf Pa, h=%lf %%rH", temperature, pressure, humidity);
 
     return 0;
-}
+} 
 
 
-int8_t bme280_get_data(uint32_t period, struct bme280_dev *dev) {
+int8_t bme280_get_data(double *temperature, double *pressure, double *humidity) {
     int8_t rslt = BME280_E_NULL_PTR;
     int8_t done = 0;
     uint8_t status_reg;
     struct bme280_data comp_data;
 
+    /* Null pointer check */
+    if (temperature == NULL || pressure == NULL || humidity == NULL) {
+        ESP_LOGE(BME280_TAG, "bme2802_get_data: Null pointer!");
+        return rslt;
+    }
+
     while (done != 1)
     {
-        rslt = bme280_get_regs(BME280_REG_STATUS, &status_reg, 1, dev);
-        bme280_error_codes_print_result("bme280_get_regs", rslt);
+        rslt = bme280_get_regs(BME280_REG_STATUS, &status_reg, 1, &bme280_dev0);
+        if (rslt != BME280_OK) {
+            ESP_LOGE(BME280_TAG, "bme280_get_regs failed: %d", rslt);
+            return rslt;
+        }
 
         if (status_reg & BME280_STATUS_MEAS_DONE)
         {
             /* Measurement time delay given to read sample */
-            dev->delay_us(period, dev->intf_ptr);
+            bme280_dev0.delay_us(bme280_period, bme280_dev0.intf_ptr);
 
             /* Read compensated data */
-            rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, dev);
-            bme280_error_codes_print_result("bme280_get_sensor_data", rslt);
-
-            ESP_LOGI(BME280_TAG, "T=%lf °C, p=%lf Pa, h=%lf %%rH", comp_data.temperature, comp_data.pressure, comp_data.humidity);
+            rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &bme280_dev0);
+            if(rslt != BME280_OK) {
+                ESP_LOGE(BME280_TAG, "bme280_get_sensor_data failed: %d", rslt);
+                return rslt;
+            }
             
+            /* Copy to output */
+            *temperature = comp_data.temperature;
+            *pressure = comp_data.pressure;
+            *humidity = comp_data.humidity;
+
             done = 1;
         }
     }

@@ -3,7 +3,8 @@
   "files.associations": {
     "esp_log.h": "c",
     "i2c_master.h": "c",
-    "bme280_handler.h": "c"
+    "bme280_handler.h": "c",
+    "chrono": "c"
   },
   "idf.flashType": "UART",
   "idf.portWin": "COM5"

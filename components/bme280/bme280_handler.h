@@ -132,12 +132,12 @@ void bme280_error_codes_print_result(const char api_name[], int8_t rslt);
 /**
  * @brief This API is used to startup the BME280.
  */
-int8_t bme280_startup(uint16_t address, struct bme280_dev *dev);
+int8_t bme280_startup(uint16_t address);
 
 /**
  * @brief This API is used to read the temperature.
  */
-int8_t bme280_get_data(uint32_t period, struct bme280_dev *dev);
+int8_t bme280_get_data(double *temperature, double *pressure, double *humidity);
 
 
 #ifdef __cplusplus
