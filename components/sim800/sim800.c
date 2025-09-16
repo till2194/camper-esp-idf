@@ -2,6 +2,7 @@
  * Includes
 *******************************************************************************/
 #include <esp_log.h>
+#include <esp_console.h>
 #include <driver/uart.h>
 
 #include "sim800.h"
@@ -11,7 +12,7 @@
  * Macros
 *******************************************************************************/
 
-#define SIM800_UART_TIMEOUT_MS      (1000)  /* Timeout for UART read in milliseconds */
+#define SIM800_UART_TIMEOUT_MS      (100)  /* Timeout for UART read in milliseconds */
 #define SIM800_UART_BUFFER_SIZE     (512)   /* UART response buffer size */
 #define SIM800_MAX_RETRIES          (10)    /* Max retries for sending commands */
 
@@ -29,7 +30,7 @@ static uart_port_t SIM800_UART_NUM;
 *******************************************************************************/
 
 bool sim800_check_response(const char *resp);
-
+int sim800_console_cmd(int argc, char** argv);
 
 /******************************************************************************
  * Function definition
@@ -38,6 +39,15 @@ bool sim800_check_response(const char *resp);
 int sim800_init(uart_port_t uart_num) {
     SIM800_UART_NUM = uart_num;
     ESP_LOGI(SIM800_TAG, "SIM800C init on UART %d...", uart_num);
+
+    /* Add console command */
+    esp_console_cmd_t cmd = {
+        .command = "sim-send",
+        .help = "Send AT command to SIM800",
+        .hint = NULL,
+        .func = sim800_console_cmd,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 
     /* response buffer init */
     char *response = malloc(SIM800_UART_BUFFER_SIZE);
@@ -158,4 +168,26 @@ bool sim800_check_response(const char *resp) {
     }
     
     return false;
+}
+
+
+/**
+ * @brief Console command to interact with SIM800
+ * 
+ * @param argc : Argument count
+ * @param argv : Argument values
+ */
+int sim800_console_cmd(int argc, char** argv) {
+    /* Send command to SIM800 and print response */
+    if (argc < 2) {
+        ESP_LOGE(SIM800_TAG, "Usage: sim800-cmd <AT command>");
+        return ESP_FAIL;
+    }
+    char command[128] = {0};
+    snprintf(command, sizeof(command), "%s", argv[1]);
+    sim800_send_cmd(command);
+    char response[SIM800_UART_BUFFER_SIZE];
+    sim800_read_response(response);
+    printf("Response: %s\n", response);
+    return ESP_OK;
 }

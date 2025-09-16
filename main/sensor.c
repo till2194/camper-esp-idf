@@ -2,6 +2,8 @@
  * Includes
 *******************************************************************************/
 #include <esp_log.h>
+#include <esp_console.h>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
@@ -37,6 +39,7 @@ static SemaphoreHandle_t sensor_data_mutex;
  * Static function declaration
 *******************************************************************************/
 
+int sensor_console_cmd(int argc, char** argv);
 
 /******************************************************************************
  * Function definition
@@ -69,6 +72,15 @@ void sensor_init(void) {
                 break;
         }
     }
+
+    /* Add console command */
+    esp_console_cmd_t cmd = {
+        .command = "sensor-read",
+        .help = "Print all sensors and their values",
+        .hint = NULL,
+        .func = sensor_console_cmd,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 
     /* Start sensor task */
     xTaskCreate(sensor_task, "sensor_task", SENSOR_TASK_STACK_SIZE, NULL, SENSOR_TASK_PRIORITY, NULL);
@@ -137,3 +149,32 @@ void sensor_get_data(sensor_data_t *data) {
 /******************************************************************************
  * Static function definition
 *******************************************************************************/
+
+/**
+ * @brief Console command to read sensors and print their values 
+ * 
+ * @param argc  : Argument count
+ * @param argv  : Argument values
+ * 
+ * @return ESP_OK on success, error code otherwise
+ */
+int sensor_console_cmd(int argc, char** argv) {
+    sensor_data_t data;
+    sensor_get_data(&data);
+    for (uint32_t i=0; i<(sizeof(sensor_list)/sizeof(sensor_type_t)); i++) {
+        switch (sensor_list[i]) {
+            case SENSOR_BME280:
+                printf(SENSOR_TAG, "Temperature: %.2f °C, Pressure: %.2f hPa, Humidity: %.2f %%", data.temperature, data.pressure/100.0, data.humidity);
+                break;
+            case SENSOR_MPU6050:
+                printf(SENSOR_TAG, "Acc: %.2f %.2f %.2f", data.acc_x, data.acc_y, data.acc_z);
+                break;
+            case SENSOR_DS3231:
+                break;
+            default:
+                ESP_LOGE(SENSOR_TAG, "Not supported sensor type enum=%u!", sensor_list[i]);
+                break;
+        }
+    }
+    return ESP_OK;
+}
