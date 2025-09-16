@@ -3,6 +3,7 @@
 *******************************************************************************/
 #include <esp_log.h>
 #include <driver/i2c_master.h>
+#include <driver/uart.h>
 
 #include "driver.h"
 
@@ -30,6 +31,13 @@ static const char* DRIVER_TAG = "DRIVER";
 static void driver_i2c_init(void);
 
 
+/**
+ * @brief Inits the UART driver
+ * 
+ */
+static void driver_uart_init(void);
+
+
 /******************************************************************************
  * Function definition
 *******************************************************************************/
@@ -37,6 +45,9 @@ static void driver_i2c_init(void);
 void driver_init(void) {
     ESP_LOGI(DRIVER_TAG, "I2C init...");
     driver_i2c_init();
+
+    ESP_LOGI(DRIVER_TAG, "UART 2 init...");
+    driver_uart_init();
 }
 
 
@@ -55,4 +66,18 @@ static void driver_i2c_init(void) {
     };
     i2c_master_bus_handle_t bus_handle;
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
+}
+
+
+static void driver_uart_init(void) {
+    uart_config_t uart_config = {
+        .baud_rate = DRIVER_UART_BAUDRATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    };
+    ESP_ERROR_CHECK(uart_driver_install(DRIVER_UART_NUM, DRIVER_UART_BUFFER_SIZE, 0, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(DRIVER_UART_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(DRIVER_UART_NUM, DRIVER_UART_TX_PIN, DRIVER_UART_RX_PIN, -1, -1));
 }

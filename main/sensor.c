@@ -26,7 +26,7 @@ static const char* SENSOR_TAG = "SENSOR";
 static sensor_data_t sensor_data;
 
 sensor_type_t sensor_list[] = {
-    SENSOR_BME280,
+    // SENSOR_BME280,
     // SENSOR_MPU6050,
     // SENSOR_DS3231
 };
@@ -79,7 +79,7 @@ void sensor_task(void *args) {
         for (uint32_t i=0; i<(sizeof(sensor_list)/sizeof(sensor_type_t)); i++) {
             switch (sensor_list[i]) {
                 case SENSOR_BME280:
-                    ESP_LOGI(SENSOR_TAG, "BME280 reading data...");
+                    ESP_LOGD(SENSOR_TAG, "BME280 reading data...");
                     if (xSemaphoreTake(sensor_data_mutex, portMAX_DELAY) == pdTRUE) {
                         bme280_get_data(&sensor_data.temperature, &sensor_data.pressure, &sensor_data.humidity);
                         xSemaphoreGive(sensor_data_mutex);
