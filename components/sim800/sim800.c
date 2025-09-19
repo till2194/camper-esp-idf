@@ -22,7 +22,7 @@
 *******************************************************************************/
 
 static const char* SIM800_TAG = "SIM800";
-static uart_port_t SIM800_UART_NUM;
+static uart_port_t sim800_uart_num;
 
 
 /******************************************************************************
@@ -31,73 +31,114 @@ static uart_port_t SIM800_UART_NUM;
 
 bool sim800_check_response(const char *resp);
 int sim800_console_cmd(int argc, char** argv);
+void sim800_uart_receive_task(void *pvParameters);
+void sim800_sms_receive(const char *sms);
 
 /******************************************************************************
  * Function definition
 *******************************************************************************/
 
 int sim800_init(uart_port_t uart_num) {
-    SIM800_UART_NUM = uart_num;
-    ESP_LOGI(SIM800_TAG, "SIM800C init on UART %d...", uart_num);
+    /* return value */
+    esp_err_t ret = ESP_OK;
 
-    /* Add console command */
-    esp_console_cmd_t cmd = {
-        .command = "sim-send",
-        .help = "Send AT command to SIM800",
-        .hint = NULL,
-        .func = sim800_console_cmd,
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+    /* Reset module with GPIO */
+    /* TODO: implement GPIO logic */
+
+    sim800_uart_num = uart_num;
+    ESP_LOGI(SIM800_TAG, "SIM800C init on UART %d...", uart_num);
 
     /* response buffer init */
     char *response = malloc(SIM800_UART_BUFFER_SIZE);
     if (!response) { 
         ESP_LOGE(SIM800_TAG, "malloc failed");
-        return ESP_FAIL; 
+        ret = ESP_FAIL; 
     } else {
         memset(response, 0, sizeof(response));
     }
     
     /* Check AT -> OK */
-    int retries = SIM800_MAX_RETRIES;
-    while (retries-- > 0) {
-        sim800_send_cmd(SIM800_CMD_CHECK);
-        sim800_read_response(response);
-        if (sim800_check_response(response)) {
-            ESP_LOGI(SIM800_TAG, "SIM800C module is responsive.");
-            break;
+    if (ret == ESP_OK) {
+        int retries = SIM800_MAX_RETRIES;
+        while (retries-- > 0) {
+            sim800_send_cmd(SIM800_CMD_CHECK);
+            sim800_read_response(response);
+            if (sim800_check_response(response)) {
+                ESP_LOGI(SIM800_TAG, "SIM800C module is responsive.");
+                break;
+            }
+
+            ESP_LOGW(SIM800_TAG, "No valid response, retrying... (%d left)", retries);
+            vTaskDelay(pdMS_TO_TICKS(500));
         }
 
-        ESP_LOGW(SIM800_TAG, "No valid response, retrying... (%d left)", retries);
-        vTaskDelay(pdMS_TO_TICKS(500));
+        if (retries <= 0) {
+            ESP_LOGE(SIM800_TAG, "No response from SIM800C module after %d retries", SIM800_MAX_RETRIES);
+            free(response);
+            ret = ESP_FAIL;
+        }
     }
-
-    if (retries <= 0) {
-        ESP_LOGE(SIM800_TAG, "No response from SIM800C module after %d retries", SIM800_MAX_RETRIES);
-        free(response);
-        return ESP_FAIL;
-    }
-
+    
     /* Check Sim card */
-    sim800_send_cmd(SIM800_CMD_INFO_SIM);
-    sim800_read_response(response);
-    if (!sim800_check_response(response)) {
-        ESP_LOGE(SIM800_TAG, "No SIM card detected");
-        free(response);
-        return ESP_FAIL;
+    if (ret == ESP_OK) {
+        sim800_send_cmd(SIM800_CMD_INFO_SIM);
+        sim800_read_response(response);
+        if (!sim800_check_response(response)) {
+            ESP_LOGE(SIM800_TAG, "No SIM card detected");
+            free(response);
+            ret = ESP_FAIL;
+        }
     }
 
     /* Check Network registration */
-    sim800_send_cmd(SIM800_CMD_INFO_NETWORK);
-    sim800_read_response(response);
-    if (!sim800_check_response(response)) {
-        ESP_LOGE(SIM800_TAG, "Not registered in network");
-        free(response);
-        return ESP_FAIL;
+    if (ret == ESP_OK) {
+        sim800_send_cmd(SIM800_CMD_INFO_NETWORK);
+        sim800_read_response(response);
+        if (!sim800_check_response(response)) {
+            ESP_LOGE(SIM800_TAG, "Not registered in network");
+            free(response);
+            ret = ESP_FAIL;
+        }
+    }
+
+    /* Set SMS text mode */
+    if (ret == ESP_OK) {
+        sim800_send_cmd(SIM800_CMD_SMS_TEXT_MODE);
+        sim800_read_response(response);
+        if (!sim800_check_response(response)) {
+            ESP_LOGE(SIM800_TAG, "Failed to set SMS text mode");
+            ret = ESP_FAIL;
+        }
+    }
+
+    /* Enable SMS notification */
+    if (ret == ESP_OK) {
+        sim800_send_cmd(SIM800_CMD_SMS_TX_CONFIG);
+        sim800_read_response(response);
+        if (!sim800_check_response(response)) {
+            ESP_LOGE(SIM800_TAG, "Failed to enable SMS notifications");
+            ret = ESP_FAIL;
+        }
+    }
+
+    /* Add console command */
+    if (ret == ESP_OK) {
+        esp_console_cmd_t cmd = {
+            .command = "sim-send",
+            .help = "Send AT command to SIM800",
+            .hint = NULL,
+            .func = sim800_console_cmd,
+        };
+        ret = esp_console_cmd_register(&cmd);
+    }
+
+    /* Sart UART receive task */
+    if (ret == ESP_OK) {
+        xTaskCreate(sim800_uart_receive_task, "sim800_uart_rx", 4096, NULL, 10, NULL);
     }
 
     free(response);
-    return ESP_OK;
+    return ret;
 }
 
 
@@ -108,8 +149,8 @@ void sim800_send_cmd(const char *cmd) {
         return;
     }
 
-    uart_write_bytes(SIM800_UART_NUM, cmd, strlen(cmd));
-    uart_write_bytes(SIM800_UART_NUM, SIM800_CMD_END, 2);
+    uart_write_bytes(sim800_uart_num, cmd, strlen(cmd));
+    uart_write_bytes(sim800_uart_num, SIM800_CMD_END, 2);
     ESP_LOGD(SIM800_TAG, ">> %s", cmd);
 }
 
@@ -122,7 +163,7 @@ void sim800_read_response(char *response) {
     }
 
     char buffer[SIM800_UART_BUFFER_SIZE];
-    int len = uart_read_bytes(SIM800_UART_NUM, (uint8_t *)buffer, sizeof(buffer) - 1, pdMS_TO_TICKS(SIM800_UART_TIMEOUT_MS));
+    int len = uart_read_bytes(sim800_uart_num, (uint8_t *)buffer, sizeof(buffer) - 1, pdMS_TO_TICKS(SIM800_UART_TIMEOUT_MS));
     if (len > 0) {
         buffer[len] = '\0';
         ESP_LOGD(SIM800_TAG, "<< %s", buffer);
@@ -171,6 +212,51 @@ bool sim800_check_response(const char *resp) {
 }
 
 
+/*
+ * UART receive task to handle unsolicited notifications (e.g., +CMTI for new SMS)
+ */
+void sim800_uart_receive_task(void *pvParameters) {
+    char buffer[SIM800_UART_BUFFER_SIZE];
+    while (1) {
+        int len = uart_read_bytes(sim800_uart_num, (uint8_t *)buffer, sizeof(buffer) - 1, pdMS_TO_TICKS(500));
+        if (len > 0) {
+            buffer[len] = '\0';
+            ESP_LOGD(SIM800_TAG, "[RX] %s", buffer);
+            char *cmti = strstr(buffer, "+CMTI: ");
+            if (cmti) {
+                // Example: +CMTI: "SM",3
+                int index = -1;
+                char *comma = strchr(cmti, ',');
+                if (comma) {
+                    index = atoi(comma + 1);
+                }
+                if (index > 0) {
+                    // Read SMS at index
+                    char cmd[32];
+                    snprintf(cmd, sizeof(cmd), "AT+CMGR=%d", index);
+                    sim800_send_cmd(cmd);
+                    char sms_resp[SIM800_UART_BUFFER_SIZE];
+                    sim800_read_response(sms_resp);
+                    // Call handler
+                    sim800_sms_receive(sms_resp);
+                }
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+
+/**
+ * @brief Handler for received SMS
+ * 
+ * @param sms : SMS content
+ */
+void sim800_sms_receive(const char *sms) {
+    ESP_LOGI(SIM800_TAG, "Received SMS: %s", sms);
+}
+
+
 /**
  * @brief Console command to interact with SIM800
  * 
@@ -190,4 +276,5 @@ int sim800_console_cmd(int argc, char** argv) {
     sim800_read_response(response);
     printf("Response: %s\n", response);
     return ESP_OK;
+
 }

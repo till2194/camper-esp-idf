@@ -34,8 +34,6 @@ extern "C" {
 #define SIM800_CMD_OPERATORS       ("AT+COPS=?")    /* Returns the list of operators present in the network */
 #define SIM800_CMD_BATTERY         ("AT+CBC")       /* Returns Li-Po battery status */
 
-
-
 #define SIM800_CMD_SMS_TEXT_MODE   ("AT+CMGF=1")                   /* Configure SMS Text Mode */
 #define SIM800_CMD_SMS_TX_CONFIG   ("AT+CNMI=1,2,0,0,0")           /* Decides how newly arrived SMS messages should be handled */
 #define SIM800_CMD_SMS_TX_START    ("AT+CMGS=\"+4915237605881\"")  /* Config SMS number */
