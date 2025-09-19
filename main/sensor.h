@@ -16,13 +16,14 @@ extern "C" {
 /******************************************************************************
  * Includes
 *******************************************************************************/
+#include <time.h>
 
 
 /******************************************************************************
  * Macros
 *******************************************************************************/
 #define SENSOR_TASK_PRIORITY    5
-#define SENSOR_TASK_DELAY_MS    5000
+#define SENSOR_TASK_DELAY_MS    500
 #define SENSOR_TASK_STACK_SIZE  4096
 
 
@@ -53,6 +54,9 @@ typedef struct sensor_data_s {
     double acc_x;           /* x Acceleration in g */
     double acc_y;           /* y Acceleration in g */
     double acc_z;           /* z Acceleration in g */
+
+    /* DS3231 */
+    struct tm time;           /* Current time */
 } sensor_data_t;
 
 

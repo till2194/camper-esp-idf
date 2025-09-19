@@ -154,18 +154,18 @@ void ds3231_write_time(const ds3231_time_t *time) {
     buf[1] = dec_to_bcd(time->seconds) & DS3231_REG_SECONDS_MASK;
     buf[2] = dec_to_bcd(time->minutes) & DS3231_REG_MINUTES_MASK;
     buf[3] = dec_to_bcd(time->hours) & DS3231_REG_HOURS_MASK_24H;   /* Ensure 24h format */
-    buf[4] = time->day & DS3231_REG_DAY_MASK;
+    buf[4] = dec_to_bcd(time->day) & DS3231_REG_DAY_MASK;
     buf[5] = dec_to_bcd(time->date) & DS3231_REG_DATE_MASK;
     buf[6] = dec_to_bcd(time->month) & DS3231_REG_MONTH_MASK;
 
     if (time->year >= 2100) {
         /* Set century bit for 2100-2199 */
-        buf[5] |= DS3231_REG_CENTURY_MASK;
-        buf[6] = dec_to_bcd(time->year - 2100) & DS3231_REG_YEAR_MASK;
+        buf[6] |= DS3231_REG_CENTURY_MASK;
+        buf[7] = dec_to_bcd(time->year - 2100) & DS3231_REG_YEAR_MASK;
     } else {
         /* Clear century bit for 2000-2099 */
-        buf[5] &= ~DS3231_REG_CENTURY_MASK;
-        buf[6] = dec_to_bcd(time->year - 2000) & DS3231_REG_YEAR_MASK;
+        buf[6] &= ~DS3231_REG_CENTURY_MASK;
+        buf[7] = dec_to_bcd(time->year - 2000) & DS3231_REG_YEAR_MASK;
     }
 
     ESP_ERROR_CHECK(i2c_master_transmit(i2c_dev_handle, &buf[0], 8, DS3231_TIMEOUT_MS));
@@ -326,7 +326,7 @@ void ds3231_print_time(const ds3231_time_t *time) {
         return;
     }
 
-    ESP_LOGI(DS3231_TAG, "Time: %02u:%02u:%02u %02u/%02u/%04u (Day of week: %u)",
+    ESP_LOGI(DS3231_TAG, "Time: %02u:%02u:%02u %02u.%02u.%04u (Day of week: %u)",
              time->hours, time->minutes, time->seconds,
              time->date, time->month, time->year,
              time->day);

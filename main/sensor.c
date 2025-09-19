@@ -3,6 +3,7 @@
 *******************************************************************************/
 #include <esp_log.h>
 #include <esp_console.h>
+#include <time.h>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -30,7 +31,7 @@ static sensor_data_t sensor_data;
 sensor_type_t sensor_list[] = {
     // SENSOR_BME280,
     // SENSOR_MPU6050,
-    // SENSOR_DS3231
+    SENSOR_DS3231
 };
 
 static SemaphoreHandle_t sensor_data_mutex;
@@ -40,6 +41,7 @@ static SemaphoreHandle_t sensor_data_mutex;
 *******************************************************************************/
 
 int sensor_console_cmd(int argc, char** argv);
+int time_console_cmd(int argc, char** argv);
 
 /******************************************************************************
  * Function definition
@@ -59,7 +61,7 @@ void sensor_init(void) {
             
             case SENSOR_MPU6050:
                 ESP_LOGI(SENSOR_TAG, "MPU6050 init...");
-                mpu6050_init(MPU6050_I2C_ADDR1);
+                mpu6050_init(MPU6050_I2C_ADDR0);
                 break;
 
             case SENSOR_DS3231:
@@ -82,6 +84,15 @@ void sensor_init(void) {
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
 
+    /* TODO: move somewhere else */
+    esp_console_cmd_t cmd2 = {
+        .command = "time-set",
+        .help = "Set the current time",
+        .hint = NULL,
+        .func = time_console_cmd,
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd2));
+
     /* Start sensor task */
     xTaskCreate(sensor_task, "sensor_task", SENSOR_TASK_STACK_SIZE, NULL, SENSOR_TASK_PRIORITY, NULL);
 }
@@ -91,7 +102,6 @@ void sensor_task(void *args) {
         for (uint32_t i=0; i<(sizeof(sensor_list)/sizeof(sensor_type_t)); i++) {
             switch (sensor_list[i]) {
                 case SENSOR_BME280:
-                    ESP_LOGD(SENSOR_TAG, "BME280 reading data...");
                     if (xSemaphoreTake(sensor_data_mutex, portMAX_DELAY) == pdTRUE) {
                         bme280_get_data(&sensor_data.temperature, &sensor_data.pressure, &sensor_data.humidity);
                         xSemaphoreGive(sensor_data_mutex);
@@ -112,9 +122,14 @@ void sensor_task(void *args) {
                     break;
 
                 case SENSOR_DS3231:
-                    ESP_LOGI(SENSOR_TAG, "DS3231 reading time...");
                     ds3231_time_t ds_time;
                     ds3231_read_time(&ds_time);
+                    if (xSemaphoreTake(sensor_data_mutex, portMAX_DELAY) == pdTRUE) {
+                        ds3231_convert_dstime_to_tmtime(&ds_time, &sensor_data.time);
+                        xSemaphoreGive(sensor_data_mutex);
+                    } else {
+                        ESP_LOGE(SENSOR_TAG, "sensor_task: Could not get mutex!");
+                    }
                     break;
                 
                 default:
@@ -164,17 +179,48 @@ int sensor_console_cmd(int argc, char** argv) {
     for (uint32_t i=0; i<(sizeof(sensor_list)/sizeof(sensor_type_t)); i++) {
         switch (sensor_list[i]) {
             case SENSOR_BME280:
-                printf(SENSOR_TAG, "Temperature: %.2f °C, Pressure: %.2f hPa, Humidity: %.2f %%", data.temperature, data.pressure/100.0, data.humidity);
+                printf("Temperature: %.2f °C, Pressure: %.2f hPa, Humidity: %.2f %%\n", data.temperature, data.pressure/100.0, data.humidity);
                 break;
             case SENSOR_MPU6050:
-                printf(SENSOR_TAG, "Acc: %.2f %.2f %.2f", data.acc_x, data.acc_y, data.acc_z);
+                printf("Acc: %.2f %.2f %.2f\n", data.acc_x, data.acc_y, data.acc_z);
                 break;
             case SENSOR_DS3231:
+                char buffer[26];
+                strftime(buffer, sizeof(buffer), "%H:%M:%S %d.%m.%Y" , &data.time);
+                printf("Time: %s\n", buffer);
                 break;
             default:
                 ESP_LOGE(SENSOR_TAG, "Not supported sensor type enum=%u!", sensor_list[i]);
                 break;
         }
     }
+    return ESP_OK;
+}
+
+
+/**
+ * @brief Sets the system time to the given time (console command) 
+ * 
+ * @param argc  : Argument count
+ * @param argv  : Argument values
+ * 
+ * @return ESP_OK on success, error code otherwise 
+ */
+int time_console_cmd(int argc, char** argv) {
+    if (argc != 2) {
+        printf("Usage: time-set <HH:MM:SS-DD.MM.YYYY>\n");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    struct tm tm;
+    if (strptime(argv[1], "%H:%M:%S-%d.%m.%Y", &tm) == NULL) {
+        printf("Invalid date format. Use HH:MM:SS-DD.MM.YYYY\n");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    ds3231_time_t ds_time;
+    ds3231_convert_tmtime_to_dstime(&tm, &ds_time);
+    ds3231_write_time(&ds_time);
+
     return ESP_OK;
 }

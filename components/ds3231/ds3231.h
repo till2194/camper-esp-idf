@@ -31,7 +31,7 @@ extern "C" {
 #define DS3231_REG_MINUTES_MASK             (0x7F)      /* Minutes mask */
 
 #define DS3231_REG_HOURS                    (0x02)      /* Hours register */
-#define DS3231_REG_HOURS_MASK_12H_FLAG      (1 << 5)    /* Flag to set 12h format */
+#define DS3231_REG_HOURS_MASK_12H_FLAG      (1 << 6)    /* Flag to set 12h format */
 #define DS3231_REG_HOURS_MASK_12H           (0x1F)      /* Hours mask for 12h format */
 #define DS3231_REG_HOURS_MASK_24H           (0x3F)      /* Hours mask for 24h format */
 
