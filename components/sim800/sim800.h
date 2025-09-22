@@ -52,7 +52,7 @@ extern "C" {
 /**
  * @brief Inits the SIM800 module
  */
-int sim800_init(uart_port_t uart_num);
+int sim800_init(uart_port_t uart_num, void* sms_handler);
 
 /**
  * @brief Sends an AT command to the SIM800C module
@@ -62,12 +62,27 @@ int sim800_init(uart_port_t uart_num);
 void sim800_send_cmd(const char *cmd);
 
 
+ /**
+  * @brief Reads the response from the SIM800C module
+  * 
+  * @param buf  : Buffer to store the response
+  * @param len  : Length of the buffer
+  * 
+  * @return ESP_OK on succes, false on error
+  */
+int sim800_read_response(char *buf, size_t len);
+
+
 /**
- * @brief Reads the response from the SIM800C module
+ * @brief Get signal quality from SIM800C module
  * 
- * @param response : Buffer to store the response
+ * @param rssi : Pointer to store the RSSI value (0-31)
+ * @param ber  : Pointer to store the Bit Error Rate (0-7, 99=not known or not detectable)
+ * 
+ * @return ESP_OK on succes, false on error
+ * 
  */
-void sim800_read_response(char *response);
+int sim800_get_signal_quality(uint8_t *rssi, uint8_t *ber);
 
 
 #ifdef __cplusplus

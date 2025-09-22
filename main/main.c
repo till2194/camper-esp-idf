@@ -18,9 +18,6 @@ void app_main(void) {
     ESP_LOGI(MAIN_TAG, "Starting sensors...");
     sensor_init();
 
-    ESP_LOGI(MAIN_TAG, "Starting SIM800...");
-    sim800_init(DRIVER_UART_NUM);
-
     ESP_LOGI(MAIN_TAG, "Starting console...");
     console_init();
 }

@@ -10,10 +10,12 @@
 #include <freertos/task.h>
 
 #include "sensor.h"
+#include "driver.h"
 #include "mpu6050.h"
 #include "bme280_handler.h"
 #include "bme280.h"
 #include "ds3231.h"
+#include "sim800.h"
 
 
 /******************************************************************************
@@ -31,7 +33,8 @@ static sensor_data_t sensor_data;
 sensor_type_t sensor_list[] = {
     // SENSOR_BME280,
     // SENSOR_MPU6050,
-    SENSOR_DS3231
+    // SENSOR_DS3231,
+    SENSOR_SIM800
 };
 
 static SemaphoreHandle_t sensor_data_mutex;
@@ -42,6 +45,7 @@ static SemaphoreHandle_t sensor_data_mutex;
 
 int sensor_console_cmd(int argc, char** argv);
 int time_console_cmd(int argc, char** argv);
+int sensor_sim800_sms_handler(const char *sms);
 
 /******************************************************************************
  * Function definition
@@ -67,6 +71,11 @@ void sensor_init(void) {
             case SENSOR_DS3231:
                 ESP_LOGI(SENSOR_TAG, "DS3231 init...");
                 ds3231_init(DS3231_I2C_ADDR);
+                break;
+
+            case SENSOR_SIM800:
+                ESP_LOGI(SENSOR_TAG, "SIM800 init...");
+                sim800_init(DRIVER_UART_NUM, sensor_sim800_sms_handler);
                 break;
             
             default:
@@ -131,6 +140,15 @@ void sensor_task(void *args) {
                         ESP_LOGE(SENSOR_TAG, "sensor_task: Could not get mutex!");
                     }
                     break;
+
+                case SENSOR_SIM800:
+                    if (xSemaphoreTake(sensor_data_mutex, portMAX_DELAY) == pdTRUE) {
+                        sim800_get_signal_quality(&sensor_data.rssi, &sensor_data.ber);
+                        xSemaphoreGive(sensor_data_mutex);
+                    } else {
+                        ESP_LOGE(SENSOR_TAG, "sensor_task: Could not get mutex!");
+                    }
+                    break;
                 
                 default:
                     ESP_LOGE(SENSOR_TAG, "Not supported sensor type enum=%u!", sensor_list[i]);
@@ -181,14 +199,21 @@ int sensor_console_cmd(int argc, char** argv) {
             case SENSOR_BME280:
                 printf("Temperature: %.2f °C, Pressure: %.2f hPa, Humidity: %.2f %%\n", data.temperature, data.pressure/100.0, data.humidity);
                 break;
+            
             case SENSOR_MPU6050:
                 printf("Acc: %.2f %.2f %.2f\n", data.acc_x, data.acc_y, data.acc_z);
                 break;
+            
             case SENSOR_DS3231:
                 char buffer[26];
                 strftime(buffer, sizeof(buffer), "%H:%M:%S %d.%m.%Y" , &data.time);
                 printf("Time: %s\n", buffer);
                 break;
+            
+            case SENSOR_SIM800:
+                printf("Signal strength: %d dBm, Bit error rate: %d\n", data.rssi, data.ber);
+                break;
+
             default:
                 ESP_LOGE(SENSOR_TAG, "Not supported sensor type enum=%u!", sensor_list[i]);
                 break;
@@ -222,5 +247,18 @@ int time_console_cmd(int argc, char** argv) {
     ds3231_convert_tmtime_to_dstime(&tm, &ds_time);
     ds3231_write_time(&ds_time);
 
+    return ESP_OK;
+}
+
+
+/**
+ * @brief Handler for incoming SMS messages from SIM800
+ * 
+ * @param sms : Pointer to the SMS message string
+ * 
+ * @return ESP_OK on success, error code otherwise
+ */
+int sensor_sim800_sms_handler(const char *sms) {
+    ESP_LOGI(SENSOR_TAG, "Received SMS: %s", sms);
     return ESP_OK;
 }

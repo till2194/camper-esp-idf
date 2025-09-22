@@ -37,7 +37,8 @@ extern "C" {
 typedef enum sensor_type_e {
     SENSOR_BME280,      /* BME280 Environmental sensor */
     SENSOR_MPU6050,     /* MPU6050 Accelerometer and Gyroscope */
-    SENSOR_DS3231       /* DS3231 Real Time Clock */
+    SENSOR_DS3231,      /* DS3231 Real Time Clock */
+    SENSOR_SIM800       /* SIM800 GSM module */
 } sensor_type_t;
 
 
@@ -57,6 +58,11 @@ typedef struct sensor_data_s {
 
     /* DS3231 */
     struct tm time;           /* Current time */
+
+    /* SIM800 */
+    uint8_t rssi;           /* Signal strength in dBm */
+    uint8_t ber;            /* Bit error rate */
+    
 } sensor_data_t;
 
 
