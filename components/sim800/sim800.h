@@ -26,7 +26,10 @@ extern "C" {
 #define SIM800_CMD_CHECK            ("AT")          /* Basic AT command to check communication */
 #define SIM800_RSP_OK               ("OK")          /* OK response */
 #define SIM800_RSP_ERROR            ("ERROR")       /* ERROR response */
+#define SIM800_RSP_CMS_ERROR        ("+CMS ERROR")  /* CMS ERROR response */
 
+#define SIM800_CMD_ECHO_OFF        ("ATE0")         /* Turn off echo */
+#define SIM800_CMD_ECHO_ON         ("ATE1")         /* Turn on echo */
 #define SIM800_CMD_SIGNAL_TEST     ("AT+CSQ")       /* Signal quality test, value range is 0-31 , 31 is the best */
 #define SIM800_CMD_INFO_SIM        ("AT+CCID")      /* Read SIM information to confirm whether the SIM is plugged */
 #define SIM800_CMD_INFO_NETWORK    ("AT+CREG?")     /* Check whether it has registered in the network */
@@ -43,6 +46,32 @@ extern "C" {
 /******************************************************************************
  * Typedefs
 *******************************************************************************/
+
+/**
+ * @brief Status <stat> of Network Registration CREG
+ * 
+ */
+typedef enum sim800_creg_stat_e {
+    SIM800_CREG_NOT_REGISTERED      = 0,
+    SIM800_CREG_REGISTERED_HOME     = 1,
+    SIM800_CREG_SEARCHING           = 2,
+    SIM800_CREG_DENIED              = 3,
+    SIM800_CREG_UNKOWN              = 4,
+    SIM800_CREG_REGISTERED_ROAMING  = 5
+} sim800_creg_stat_t;
+
+
+/**
+ * @brief 
+ * 
+ */
+typedef struct sim800_s {
+    uart_port_t uart_num;
+    sim800_creg_stat_t net_status;
+    int rssi;
+    int ber;
+    void (*sms_handler)(const char *sms);
+} sim800_t;
 
 
 /******************************************************************************

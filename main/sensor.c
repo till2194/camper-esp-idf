@@ -142,12 +142,7 @@ void sensor_task(void *args) {
                     break;
 
                 case SENSOR_SIM800:
-                    if (xSemaphoreTake(sensor_data_mutex, portMAX_DELAY) == pdTRUE) {
-                        sim800_get_signal_quality(&sensor_data.rssi, &sensor_data.ber);
-                        xSemaphoreGive(sensor_data_mutex);
-                    } else {
-                        ESP_LOGE(SENSOR_TAG, "sensor_task: Could not get mutex!");
-                    }
+                    /* handled in sim800 uart task */
                     break;
                 
                 default:
